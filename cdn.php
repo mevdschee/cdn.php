@@ -8,13 +8,12 @@ $config = array(
 );
 $host = $_SERVER['HTTP_HOST'];
 $request = $_SERVER['REQUEST_URI'];
-if (!isset($config[$host])) die('Access Denied');
+if (!isset($config[$host])) die('Not Found');
 $cache = $config[$host]['cache'];
 $hash = md5($cache($host,$request));
 $hash = substr($hash,0,1).'/'.substr($hash,1,2).'/'.substr($hash,3);
 $upstream = $config[$host]['url'];
 $url = $upstream($host,$request);
-if (!$url) die('Not Found');
 $files = "$host/files.txt";
 $file = "$host/$hash";
 $dir = dirname($file);
