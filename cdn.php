@@ -1,7 +1,7 @@
 <?php
 $config = array(
-  'localhost' => array(
-    'url' => function ($h,$r) { return 'http://i.imgur.com'.$r; },
+  'localhost:8888' => array(
+    'url' => function ($h,$r) { return 'http://i.imgur.com'.str_replace('/cdn.php','',$r); },
     'cache' => function ($h,$r) { return $r; },
     'copy' => array( 'Content-Type' => true ),
   ),
@@ -21,11 +21,15 @@ if (!file_exists($dir)) mkdir($dir,0755,true);
 if (!file_exists($file.'.bin')) {
   $ch = curl_init();
   curl_setopt($ch, CURLOPT_URL, $url);
-  curl_setopt($ch, CURLOPT_HEADER, 1);
-  curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+  curl_setopt($ch, CURLOPT_HEADER, true);
+  curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+  curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
   $response = curl_exec($ch);
-  $split = strpos($response, "\r\n\r\n");
-  $header_text = substr($response, 0, $split);
+  $redirects = curl_getinfo($ch,CURLINFO_REDIRECT_COUNT);
+  $start = 0;
+  for ($i=0;$i<$redirects;$i++) $start = strpos($response,"\r\n\r\n",$start)+4;
+  $end = strpos($response,"\r\n\r\n",$start);
+  $header_text = substr($response,$start,$end-$start);
   $headers = array();
   $copy = $config[$host]['copy'];
   foreach (explode("\r\n", $header_text) as $i => $line) {
@@ -39,7 +43,7 @@ if (!file_exists($file.'.bin')) {
   }
   file_put_contents($files,"$hash $request\r\n",FILE_APPEND);
   file_put_contents($file.'.txt',implode("\r\n",$headers));
-  file_put_contents($file.'.bin',substr($response, $split+4));
+  file_put_contents($file.'.bin',substr($response,$end+4));
   header("X-PHP-CDN: MISS");
 } else {
   $headers = explode("\r\n",file_get_contents($file.'.txt'));
