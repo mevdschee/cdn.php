@@ -1,6 +1,9 @@
 <?php
 $config = array(
-  'localhost:8888' => array(
+  'localhost:8888' => array('provider'=>'imgur', 'origin'=>'www.imgur.com'),
+);
+$providers = array(
+  'imgur' => array(
     'url' => function ($h,$r) { return 'http://i.imgur.com'.str_replace('/cdn.php','',$r); },
     'cache' => function ($h,$r) { return $r; },
     'copy' => array( 'Content-Type' => true ),
@@ -8,12 +11,16 @@ $config = array(
 );
 $host = $_SERVER['HTTP_HOST'];
 $request = $_SERVER['REQUEST_URI'];
-if (!isset($config[$host])) die('Not Found');
-$cache = $config[$host]['cache'];
+if (!isset($config[$host])) die('Access Denied');
+if (!isset($providers[$config[$host]['provider']])) die('Access Denied');
+$provider = $providers[$config[$host]['provider']];
+$cache = $provider['cache'];
 $hash = md5($cache($host,$request));
 $hash = substr($hash,0,1).'/'.substr($hash,1,2).'/'.substr($hash,3);
-$upstream = $config[$host]['url'];
-$url = $upstream($host,$request);
+$upstream = $provider['url'];
+$origin = $config[$host]['origin'];
+$url = $upstream($host,$request,$origin);
+if (!$url) die('Not Found');
 $files = "$host/files.txt";
 $file = "$host/$hash";
 $dir = dirname($file);
@@ -31,7 +38,7 @@ if (!file_exists($file.'.bin')) {
   $end = strpos($response,"\r\n\r\n",$start);
   $header_text = substr($response,$start,$end-$start);
   $headers = array();
-  $copy = $config[$host]['copy'];
+  $copy = $provider['copy'];
   foreach (explode("\r\n", $header_text) as $i => $line) {
     if ($i===0) {
       list($proto,$code,$status) = explode(' ',$line,3);
